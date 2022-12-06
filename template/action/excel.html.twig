@@ -1,0 +1,125 @@
+{% set title = 'Excel Formula' %}
+{% extends 'page.html.twig' %}
+
+{% block styles %}
+<style>
+output, #excel_copy {
+    display: none;
+}
+
+output code {
+    display: block;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ parent() }}
+<script>
+document.getElementById('excel').addEventListener('submit', function(event) {
+    event.preventDefault();
+
+    const access_key = document.getElementById('excel_access_key');
+    const output = document.getElementById('excel_output');
+    const extension = document.getElementById('excel_extension');
+    const size = document.getElementById('excel_size');
+    const endpoint = document.getElementById('excel_endpoint');
+
+    output.parentElement.style.display = 'block';
+    output.innerText = '=LET(AccessKey, "' + access_key.value + '",';
+
+    if (extension.value) {
+        output.innerText += ' Extension, "' + extension.value + '",';
+    } else {
+        output.innerText += ' FileName,' +
+            ' INDEX(A2:ZZ2, MATCH("ZDam Path", A$1:ZZ$1, 0)),' +
+            ' Extension,' +
+            ' TRIM(RIGHT(' +
+                'SUBSTITUTE(FileName, ".", REPT(" ", LEN(FileName))), ' +
+                'LEN(FileName)' +
+                ')),';
+    }
+
+    output.innerText += ' Size, "' + size.value + '",' +
+        ' AssetId, INDEX(A2:ZZ2, MATCH("Asset ID(s)", A$1:ZZ$1, 0)),' +
+        ' CONCATENATE("https://zdam.bgsu.edu';
+
+    if (endpoint.value === 'convert') {
+        output.innerText += '/plugins/format_chooser/pages/convert.php';
+    } else {
+        output.innerText += '/pages/download.php';
+    }
+
+    output.innerText += '?k=", AccessKey, "&ext=", Extension,' +
+        ' "&size=", Size, "&ref=", AssetId))';
+});
+
+if (navigator.clipboard) {
+    const excel_copy = document.getElementById('excel_copy');
+
+    excel_copy.style.display = 'block';
+    excel_copy.addEventListener('click', function(event) {
+        event.preventDefault();
+
+        navigator.clipboard.writeText(
+            document.getElementById('excel_output').innerText
+        );
+    });
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="bgsu_common_list_breadcrumb">
+        <li><a href="{{ url_for('index') }}">{{ settings.template.site }}</a></li><li aria-current="page">{{ title }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+{{ parent() }}
+
+<form id="excel">
+<div>
+<h2><label for="excel_access_key">Access Key</label></h2>
+<input type="text" id="excel_access_key" pattern="[0-9A-Fa-f]{10}" title="10-digit hexadecimal access key" required>
+</div>
+<div>
+<h2><label for="excel_extension">Extension</label></h2>
+<select id="excel_extension">
+<option value="">Determine from filename</option>
+<option value="jpg">.jpg</option>
+<option value="gif">.gif</option>
+<option value="pdf">.pdf</option>
+<option value="png">.png</option>
+<option value="tif">.tif</option>
+</select>
+<div>Alternate extensions are not always available with the Download endpoint.</div>
+</div>
+<div>
+<h2><label for="excel_extension">Size</label></h2>
+<select id="excel_size">
+<option value="">Original resolution</option>
+<option value="lbr">Libraries</option>
+<option value="scr">Screen</option>
+<option value="lpr">Low resolution print</option>
+<option value="hpr">High resolution print</option>
+</select>
+<div>Alternate sizes are not always available with the Download endpoint.</div>
+</div>
+<h2><label for="excel_endpoint">Endpoint</label></h2>
+<select id="excel_endpoint">
+<option value="convert">Convert</option>
+<option value="">Download</option>
+</select>
+</div>
+<p><button type="submit" class="bgsu_common_button bgsu_common_button__arrow bgsu_common_button__primary">Create</button></p>
+<output>
+<h2>Formula</h2>
+<code id="excel_output">N/A</code>
+<p><button id="excel_copy" class="bgsu_common_button" data-clipboard-target="#excel_output">Copy to Clipboard</button></p>
+</output>
+</form>
+
+{% endblock %}

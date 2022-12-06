@@ -1,0 +1,23 @@
+{% set title = 'Convert Spreadsheet' %}
+{% extends 'page.html.twig' %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="bgsu_common_list_breadcrumb">
+        <li><a href="{{ url_for('index') }}">{{ settings.template.site }}</a></li><li aria-current="page">{{ title }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+{{ parent() }}
+
+<form method="post" enctype="multipart/form-data">
+<h2><label for="file">Spreadsheet File</label></h2>
+<p><input type="file" id="file" name="file" required></p>
+<p><button type="submit" class="bgsu_common_button bgsu_common_button__arrow bgsu_common_button__primary">Upload</button></p>
+</form>
+
+<p><a href="metadata.csv" class="bgsu_common_button bgsu_common_button__small">Download Template CSV File</a></p>
+
+{% endblock %}

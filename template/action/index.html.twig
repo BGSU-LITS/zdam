@@ -1,0 +1,26 @@
+{% extends 'page.html.twig' %}
+
+{% block content %}
+{{ parent() }}
+
+<h2>ZDAM</h2>
+<ul class="bgsu_common__closer">
+    <li>
+        <a href="https://zdam.bgsu.edu/">zdam.bgsu.edu</a>
+    </li>
+    <li>
+        <a href="https://bgsu.teamdynamix.com/TDClient/2070/Portal/Requests/ServiceCatalog?CategoryID=16653">ITS Service Catalog</a>
+    </li>
+</ul>
+
+<h2>Utilities</h2>
+<ul class="bgsu_common__closer">
+    <li>
+        <a href="{{ url_for('convert') }}">Convert Spreadsheet</a>
+    </li>
+    <li>
+        <a href="{{ url_for('excel') }}">Excel Formula</a>
+    </li>
+</ul>
+
+{% endblock %}
