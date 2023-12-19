@@ -17,7 +17,7 @@ final class IndexAction extends AuthAction
             throw new HttpInternalServerErrorException(
                 $this->request,
                 null,
-                $exception
+                $exception,
             );
         }
     }

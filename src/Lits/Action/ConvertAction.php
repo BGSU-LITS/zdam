@@ -31,7 +31,7 @@ final class ConvertAction extends AuthAction
             throw new HttpInternalServerErrorException(
                 $this->request,
                 null,
-                $exception
+                $exception,
             );
         }
     }
@@ -43,7 +43,7 @@ final class ConvertAction extends AuthAction
     public function post(
         ServerRequest $request,
         Response $response,
-        array $data
+        array $data,
     ): Response {
         $this->setup($request, $response, $data);
 
@@ -56,13 +56,13 @@ final class ConvertAction extends AuthAction
         } catch (InvalidDataException $exception) {
             $this->message(
                 'failure',
-                \rtrim($exception->getMessage(), '.') . '.'
+                \rtrim($exception->getMessage(), '.') . '.',
             );
         }
 
         try {
             $this->redirect(
-                $this->routeCollector->getRouteParser()->urlFor('convert')
+                $this->routeCollector->getRouteParser()->urlFor('convert'),
             );
 
             return $this->response;
@@ -70,36 +70,23 @@ final class ConvertAction extends AuthAction
             throw new HttpInternalServerErrorException(
                 $this->request,
                 null,
-                $exception
+                $exception,
             );
         }
     }
 
     /** @throws HttpInternalServerErrorException */
-    private function downloadXml(
-        \SimpleXMLElement $xml,
-        string $name
-    ): Response {
-        $content = $xml->asXML();
+    private function downloadXml(\DOMDocument $xml, string $name): Response
+    {
+        $xml->preserveWhiteSpace = false;
+        $xml->formatOutput = true;
 
-        if (!\is_string($content) || $content === '') {
-            throw new HttpInternalServerErrorException(
-                $this->request,
-                'Invalid SimpleXMLElement provided'
-            );
-        }
-
-        $dom = new \DOMDocument();
-        $dom->preserveWhiteSpace = false;
-        $dom->formatOutput = true;
-        $dom->loadXML($content);
-
-        $content = $dom->saveXML($dom->documentElement, \LIBXML_NOEMPTYTAG);
+        $content = $xml->saveXML($xml->documentElement, \LIBXML_NOEMPTYTAG);
 
         if (!\is_string($content)) {
             throw new HttpInternalServerErrorException(
                 $this->request,
-                'Could not output XML file'
+                'Could not output XML file',
             );
         }
 
@@ -114,7 +101,7 @@ final class ConvertAction extends AuthAction
             throw new HttpInternalServerErrorException(
                 $this->request,
                 'Could not download file',
-                $exception
+                $exception,
             );
         }
     }
@@ -138,7 +125,7 @@ final class ConvertAction extends AuthAction
             throw new HttpInternalServerErrorException(
                 $this->request,
                 'File upload failed with code ' .
-                (string) $files['file']->getError()
+                (string) $files['file']->getError(),
             );
         }
 
@@ -146,14 +133,17 @@ final class ConvertAction extends AuthAction
     }
 
     /** @throws HttpInternalServerErrorException */
-    private function xml(UploadedFile $file): \SimpleXMLElement
+    private function xml(UploadedFile $file): \DOMDocument
     {
         try {
-            $xml = new \SimpleXMLElement('<assets/>');
+            $xml = new \DOMDocument('1.0', 'UTF-8');
+
+            $assets = $xml->createElement('assets');
+            $xml->appendChild($assets);
 
             $temp = tempnam(\sys_get_temp_dir(), 'zdam') . \pathinfo(
                 (string) $file->getClientFilename(),
-                \PATHINFO_EXTENSION
+                \PATHINFO_EXTENSION,
             );
 
             $file->moveTo($temp);
@@ -162,13 +152,13 @@ final class ConvertAction extends AuthAction
             $rows = $spreadsheet->getActiveSheet()->getRowIterator();
 
             foreach ($rows as $row) {
-                $this->xmlRow($xml, $row);
+                $this->xmlRow($xml, $assets, $row);
             }
         } catch (\Throwable $exception) {
             throw new HttpInternalServerErrorException(
                 $this->request,
                 'Could not process uploaded file',
-                $exception
+                $exception,
             );
         }
 
@@ -176,13 +166,16 @@ final class ConvertAction extends AuthAction
     }
 
     /** @throws PcreException */
-    private function xmlRow(\SimpleXMLElement $xml, Row $row): void
-    {
+    private function xmlRow(
+        \DOMDocument $xml,
+        \DOMElement $assets,
+        Row $row,
+    ): void {
         $cells = $row->getCellIterator();
         $cells->setIterateOnlyExistingCells(false);
 
         if ($this->columns === []) {
-            /** @var Cell $cell */
+            /** @psalm-var Cell $cell */
             foreach ($cells as $column => $cell) {
                 $this->columns[$column] = (string) $cell->getValue();
             }
@@ -190,24 +183,31 @@ final class ConvertAction extends AuthAction
             return;
         }
 
-        $asset = $xml->addChild('asset');
-        $asset->addChild('filename');
-        $asset->addChild('metadata');
+        $asset = $xml->createElement('asset');
+        $assets->appendChild($asset);
 
-        /** @var Cell $cell */
+        $filename = $xml->createElement('filename');
+        $asset->appendChild($filename);
+
+        $metadata = $xml->createElement('metadata');
+        $asset->appendChild($metadata);
+
+        /** @psalm-var Cell $cell */
         foreach ($cells as $column => $cell) {
-            $this->assetColumnCell($asset, $column, $cell);
+            $this->xmlColumnCell($xml, $filename, $metadata, $column, $cell);
         }
     }
 
     /** @throws PcreException */
-    private function assetColumnCell(
-        \SimpleXMLElement $asset,
+    private function xmlColumnCell(
+        \DOMDocument $xml,
+        \DOMElement $filename,
+        \DOMElement $metadata,
         string $column,
-        Cell $cell
+        Cell $cell,
     ): void {
         if ($this->columns[$column] === 'filename') {
-            $asset->filename = $cell->getValue();
+            $filename->nodeValue = (string) $cell->getValue();
 
             return;
         }
@@ -218,16 +218,15 @@ final class ConvertAction extends AuthAction
             return;
         }
 
-        /** @var \SimpleXMLElement */
-        $metadata = $asset->metadata;
-        $field = $metadata->addChild('field', (string) $cell->getValue());
+        $field = $xml->createElement('field', (string) $cell->getValue());
+        $metadata->appendChild($field);
 
         if (isset($matches[1])) {
-            $field->addAttribute('ref', (string) $matches[1]);
+            $field->setAttribute('ref', $matches[1]);
         }
 
         if (isset($matches[2])) {
-            $field->addAttribute('title', (string) $matches[2]);
+            $field->setAttribute('title', $matches[2]);
         }
     }
 }

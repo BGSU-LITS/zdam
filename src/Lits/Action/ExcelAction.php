@@ -17,7 +17,7 @@ final class ExcelAction extends AuthAction
             throw new HttpInternalServerErrorException(
                 $this->request,
                 null,
-                $exception
+                $exception,
             );
         }
     }
